@@ -1,0 +1,11 @@
+{
+  "name": "libmp4",
+  "version": "1.0.0",
+  "description": "MP4 file library for OpenHarmony - demux and metadata extraction",
+  "main": "Index.ets",
+  "author": "Aurelien Barre <aurelien.barre@akaaba.net>",
+  "license": "BSD-3-Clause",
+  "dependencies": {
+    "libmp4.so": "file:./src/main/cpp/types/libmp4"
+  }
+}

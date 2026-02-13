@@ -1,0 +1,12 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "Demo application for libmp4 library",
+  "main": "",
+  "author": "",
+  "license": "BSD-3-Clause",
+  "dependencies": {
+    "libmp4": "file:../library"
+  }
+}
+

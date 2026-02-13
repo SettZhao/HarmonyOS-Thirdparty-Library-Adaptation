@@ -1,0 +1,12 @@
+{
+  "module": {
+    "name": "library",
+    "type": "har",
+    "description": "MP4 file library for OpenHarmony",
+    "deviceTypes": [
+      "default",
+      "phone",
+      "tablet"
+    ]
+  }
+}
