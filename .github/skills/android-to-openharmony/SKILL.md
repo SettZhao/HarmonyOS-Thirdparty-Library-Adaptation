@@ -15,6 +15,38 @@ description:
 
 # Android 三方库移植 OpenHarmony
 
+## 📚 Skill 自进化机制
+
+本 skill 是一个**持续学习和改进的知识库**，在每次实际移植过程中不断积累经验：
+
+### 何时更新 Skill
+
+**1. 遇到需要注意的重点问题**
+- 移植过程中遇到的阻塞性问题（编译错误、运行时错误）
+- 现有文档未覆盖或覆盖不足的问题
+- 具有通用性，可能在其他移植项目中再次出现的问题
+
+**2. 发现新的 API 映射关系**
+- 使用了现有文档未记录的 OpenHarmony API
+- 发现 Android API 的新映射关系
+
+**3. 归纳可复用的操作流程**
+- 需要重复执行的操作序列
+- 可以自动化的处理步骤
+
+### 如何更新
+
+详细的自进化指南参见：[references/EVOLUTION.md](references/EVOLUTION.md)
+
+**快速更新清单：**
+- 重点问题 → 更新 `SKILL.md` 的"关键注意事项"部分
+- API 映射 → 更新 `references/api-mapping.md` 和 `references/refs/*.md`
+- 可复用流程 → 创建 `scripts/` 下的辅助脚本
+
+在移植过程中，AI 助手会主动识别需要更新的内容并自动完善 skill 文档。
+
+---
+
 ## 移植工作流
 
 将 Android 三方库移植到 OpenHarmony 遵循以下步骤：
