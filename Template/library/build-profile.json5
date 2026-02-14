@@ -6,7 +6,6 @@
       "arguments": "-DCMAKE_SKIP_RPATH=TRUE",
       "abiFilters": [
         "arm64-v8a",
-        "armeabi-v7a"
       ],
       "cppFlags": ""
     },
