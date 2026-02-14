@@ -414,11 +414,13 @@ hvigorw collectCoverage
 
 ## ⚠️ 关键注意事项（必须遵守）
 
-### 1. ** 必须进行编译验证**
+### 1. **必须进行编译验证（Library + Demo）**
 
-**问题：** 代码迁移完成后未进行编译验证，导致 HAR 无法正常编译。
+**问题：** 代码迁移完成后未进行编译验证，导致 HAR 无法正常编译或 Demo 应用无法运行。
 
 **解决方案：** 在完成代码迁移后，**立即**运行编译命令验证：
+
+**A. 验证 Library HAR 编译**
 
 ```bash
 cd <project-directory>
@@ -430,6 +432,51 @@ hvigorw assembleHar
 - 编译输出 `BUILD SUCCESSFUL`
 - HAR 文件生成在 `library/build/default/outputs/default/<module-name>.har`
 - 文件大小合理（通常 > 100KB）
+
+**B. 验证 Demo 应用编译（必须）**
+
+在完成 Demo 代码后，**必须**运行完整应用编译：
+
+```bash
+cd <project-directory>
+hvigorw clean
+hvigorw assembleApp
+```
+
+**验证成功标准：**
+- 编译输出 `BUILD SUCCESSFUL`
+- Library 模块编译成功
+- Entry 模块编译成功
+- HAP 文件生成在 `entry/build/default/outputs/default/entry-default-signed.hap`
+- 文件大小合理（通常 > 1MB，包含 library 和 demo 代码）
+
+**C. Demo 依赖配置检查（常见错误）**
+
+如果 Demo 编译失败，检查以下配置：
+
+1. **entry/oh-package.json5** 必须包含 library 依赖：
+   ```json5
+   {
+     "dependencies": {
+       "library": "file:../library"  // ⚠️ 依赖名称必须与模块名一致
+     }
+   }
+   ```
+
+2. **build-profile.json5** 中 library 必须在 entry 之前：
+   ```json5
+   {
+     "modules": [
+       { "name": "library", "srcPath": "./library" },  // ⚠️ 必须在前
+       { "name": "entry", "srcPath": "./entry" }
+     ]
+   }
+   ```
+
+3. **entry/src/main/ets** 中的导入语句：
+   ```typescript
+   import { KCP } from 'library';  // ⚠️ 依赖名称必须与 oh-package.json5 一致
+   ```
 
 ### 2. **清理 Template 模板文件**
 
@@ -1141,7 +1188,78 @@ hvigorw assembleApp
 - [ ] library 模块的 `module.json5` 中 `module.name` 是 "library"（或其他名称但保持一致）
 - [ ] entry 模块能成功编译且无 "Cannot find module" 错误
 
-### 10. **编译验证清单**
+---
+
+### 10. **网络 API 类型使用（UDP/TCP Socket）**
+
+**问题：** 使用 `@kit.NetworkKit` 的 `socket.UDPSocket` 或 `socket.TCPSocket` 时，事件回调的参数类型使用错误，导致运行时类型不匹配。
+
+**常见错误：** 在使用 UDP socket 的 `on('message')` 事件时，错误地将回调参数类型声明为 `socket.UDPMessageInfo`。
+
+**❌ 错误示例：**
+```typescript
+import socket from '@kit.NetworkKit';
+
+let udpSocket = socket.constructUDPSocketInstance();
+
+// 错误：回调参数类型应该是 socket.SocketMessageInfo，而不是 socket.UDPMessageInfo
+udpSocket.on('message', (data: socket.UDPMessageInfo) => {
+  // 运行时会收到 socket.SocketMessageInfo 类型的对象，导致类型不匹配
+  console.log(data.remoteInfo.address);  // 可能导致运行时错误
+});
+```
+
+**✅ 正确示例：**
+```typescript
+import socket from '@kit.NetworkKit';
+
+let udpSocket = socket.constructUDPSocketInstance();
+
+// 正确：使用 socket.SocketMessageInfo 类型
+udpSocket.on('message', (data: socket.SocketMessageInfo) => {
+  let view = new Uint8Array(data.message);
+  let address = data.remoteInfo.address;  // 正确访问属性
+  let port = data.remoteInfo.port;
+  console.log(`Received from ${address}:${port}`);
+});
+```
+
+**解决方案和类型映射：**
+
+| Socket 类型 | 事件名 | 回调参数类型 | 说明 |
+|------------|--------|-------------|------|
+| `UDPSocket` | `'message'` | `socket.SocketMessageInfo` | ⚠️ 不是 `UDPMessageInfo` |
+| `UDPSocket` | `'error'` | `{ errno: number }` | 错误事件 |
+| `TCPSocket` | `'message'` | `socket.SocketMessageInfo` | 与 UDP 相同 |
+| `TCPSocket` | `'connect'` | `void` | 连接成功事件 |
+| `TCPSocketServer` | `'connect'` | `socket.TCPSocketConnection` | 新连接事件 |
+
+**SocketMessageInfo 结构：**
+```typescript
+interface SocketMessageInfo {
+  message: ArrayBuffer;        // 接收到的数据
+  remoteInfo: {                // 远程地址信息
+    address: string;           // IP 地址
+    port: number;              // 端口号
+    family: string;            // 'IPv4' 或 'IPv6'
+    size: number;              // 数据大小
+  };
+}
+```
+
+**检查清单：**
+- [ ] 所有 `socket.on('message', ...)` 回调使用 `socket.SocketMessageInfo` 类型
+- [ ] 不使用 `socket.UDPMessageInfo` 或 `socket.TCPMessageInfo`（这些类型可能不存在或不适用）
+- [ ] 访问 `data.message` 时使用 `ArrayBuffer` 处理（如 `new Uint8Array(data.message)`）
+- [ ] 访问远程地址信息使用 `data.remoteInfo.address` 和 `data.remoteInfo.port`
+
+**参考文档：**
+- [@kit.NetworkKit (网络管理)](https://developer.huawei.com/consumer/cn/doc/harmonyos-references-V5/js-apis-socket-V5)
+- [socket.UDPSocket](https://developer.huawei.com/consumer/cn/doc/harmonyos-references-V5/js-apis-socket-V5#udpsocket)
+
+---
+
+### 11. **编译验证清单**
 
 完成代码迁移后，按以下清单逐项检查和验证：
 
@@ -1167,6 +1285,9 @@ hvigorw assembleApp
 - [ ] 无 `__android_log_print` 调用
 
 #### 编译验证
+
+**A. HAR 库编译验证（必须）**
+
 ```bash
 # 1. 清理
 hvigorw clean
@@ -1182,6 +1303,73 @@ hvigorw assembleHar
 ls library/build/default/outputs/default/*.har
 # ✅ 文件存在且大小 > 100KB
 ```
+
+**检查清单：**
+- [ ] `hvigorw assembleHar` 编译成功
+- [ ] HAR 文件生成在 `library/build/default/outputs/default/`
+- [ ] HAR 文件大小合理（通常 > 100KB）
+- [ ] 无编译错误或警告
+
+**B. Demo 应用编译验证（必须）**
+
+在完成 Demo 代码后，必须验证整个应用能够成功编译和运行：
+
+```bash
+# 1. 清理所有模块
+hvigorw clean
+
+# 2. 编译整个应用（包括 library + entry）
+hvigorw assembleApp
+
+# 3. 检查编译输出
+# ✅ 应看到：
+# - "BUILD SUCCESSFUL" 
+# - library 模块编译成功
+# - entry 模块编译成功
+
+# 4. 验证 HAP 文件
+ls entry/build/default/outputs/default/entry-default-signed.hap
+
+# ✅ 应看到：
+# - 文件存在
+# - 文件大小合理（通常 > 1MB，包含 library 和 demo 代码）
+```
+
+**检查清单：**
+- [ ] `hvigorw clean` 成功清理所有构建输出
+- [ ] `hvigorw assembleApp` 编译成功
+- [ ] library 模块先于 entry 模块编译
+- [ ] entry 模块能成功导入 library 模块（无 "Cannot find module" 错误）
+- [ ] HAP 文件生成在 `entry/build/default/outputs/default/`
+- [ ] HAP 文件大小 > 1MB（包含 library HAR 和 demo 代码）
+- [ ] 无编译错误或警告
+
+**C. 设备运行验证（可选但推荐）**
+
+```bash
+# 1. 安装到设备（需要连接设备或模拟器）
+hdc install entry/build/default/outputs/default/entry-default-signed.hap
+
+# 2. 启动应用
+hdc shell aa start -a EntryAbility -b <bundle-name>
+
+# 3. 查看日志
+hdc hilog | grep -i "demo"
+
+# ✅ 应看到：
+# - 应用成功安装
+# - 应用成功启动
+# - Demo 页面正常显示
+# - 点击按钮后功能正常执行
+# - hilog 输出正确的日志信息
+```
+
+**检查清单：**
+- [ ] HAP 成功安装到设备
+- [ ] 应用启动无 crash
+- [ ] Demo 页面正常显示
+- [ ] Demo 功能正常执行
+- [ ] hilog 输出符合预期（无错误日志）
 
 #### 功能验证
 - [ ] **创建单元测试用例（必须）**
@@ -1209,10 +1397,49 @@ ls library/build/default/outputs/default/*.har
       - ❌ 不能包含空格或其他特殊字符
       - 推荐：驼峰命名（CamelCase）
       - 示例：`describe('Libmp4Tests', ...)` ✅ | `describe('Libmp4 Tests', ...)` ❌
-    - **`it()` 测试用例名称**：
-      - ✅ 不能包含空格
-      - 推荐：驼峰命名（camelCase）
-      - 示例：`it('testOpenFile', ...)` ✅ | `it('test open file', ...)` ❌
+    - **`it()` 测试用例写法（必须遵守）**：
+      - **⚠️ 必须提供 3 个参数**：`it(testName, filterParam, testFunction)`
+      - **参数 1 - 测试名称**：不能包含空格，推荐驼峰命名（camelCase）
+      - **参数 2 - 过滤参数**：通常使用 `0`（必需，不能省略）
+      - **参数 3 - 测试函数**：包含实际测试逻辑的箭头函数
+      - **❌ 错误示例**（缺少 filter 参数）：
+        ```typescript
+        it('testCreateInstance', () => {  // ❌ 编译错误：Expected 3 arguments, but got 2
+          // ...
+        });
+        ```
+      - **✅ 正确示例**（3 个参数）：
+        ```typescript
+        it('testCreateInstance', 0, () => {  // ✅ 正确
+          const instance = new MyClass();
+          expect(instance).not().assertNull();
+        });
+        ```
+      - **完整测试用例示例**：
+        ```typescript
+        import { describe, it, expect } from '@ohos/hypium';
+        import { MyClass } from 'library';
+        
+        export default function myLibraryTests() {
+          describe('MyLibraryTests', () => {
+            
+            it('testBasicFunction', 0, () => {
+              const result = MyClass.doSomething();
+              expect(result).assertEqual(42);
+            });
+            
+            it('testErrorHandling', 0, () => {
+              try {
+                MyClass.throwError();
+                expect(false).assertTrue(); // 不应该执行到这里
+              } catch (err) {
+                expect((err as Error).message).assertEqual('Expected error');
+              }
+            });
+            
+          });
+        }
+        ```
   - [ ] 测试覆盖核心 API 的基本功能和异常情况
 - [ ] **在 entry 模块中创建 demo 示例（必须）**
   - [ ] 如果原库有 example，迁移对应功能
@@ -1271,4 +1498,5 @@ ls library/build/default/outputs/default/*.har
 | [refs/containers.md](references/refs/containers.md) | 线性/非线性容器完整 API | 替代 Java Collections |
 | [refs/buffer.md](references/refs/buffer.md) | Buffer 完整 API | 替代 ByteBuffer |
 | [refs/xml.md](references/refs/xml.md) | XML 解析生成完整 API | 替代 XmlPullParser |
+| [refs/udp-socket.md](references/refs/udp-socket.md) | UDP Socket 完整 API (UDPSocket) | 替代 DatagramSocket |
 | [refs/error-codes.md](references/refs/error-codes.md) | 语言基础库错误码 | 调试错误时 |
