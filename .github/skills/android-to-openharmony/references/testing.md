@@ -45,18 +45,48 @@ export default function abilityTest() {
       expect(result).assertNull();
     });
     
+    it('shouldReturnValidObject', () => {
+      let obj = createObject();
+      expect(obj).not().assertNull(); // 使用 not() 实现 assertNotNull
+    });
+    
   });
 }
 ```
 
-**⚠️ 重要：测试用例命名规范**
+**⚠️ 重要：测试命名规范**
 
-OpenHarmony 测试框架要求 `it()` 的用例名称**不能包含空格**，必须使用：
-- **驼峰命名**（推荐）：`shouldAddNumbers`、`testUserLogin`、`canHandleNullInput`
-- **无分隔符命名**：`testAdd`、`test001`
+OpenHarmony 测试框架对命名有严格要求：
 
-❌ **错误示例**：`it('should add numbers', ...)` - 包含空格
-✅ **正确示例**：`it('shouldAddNumbers', ...)` - 驼峰命名
+1. **`describe()` 测试套件名称规范：**
+   - ✅ **必须符合**：只能包含数字、字母、下划线 `_` 和点 `.`
+   - ✅ **必须以字母开头**
+   - ❌ **不能包含空格** 或其他特殊字符
+   - 推荐使用**驼峰命名**（CamelCase）
+   
+   **示例：**
+   - ❌ 错误：`describe('My Library Tests', ...)` — 包含空格
+   - ❌ 错误：`describe('My-Library', ...)` — 包含连字符
+   - ❌ 错误：`describe('123Test', ...)` — 以数字开头
+   - ✅ 正确：`describe('MyLibraryTests', ...)` — 驼峰命名
+   - ✅ 正确：`describe('my_library_tests', ...)` — 下划线分隔
+   - ✅ 正确：`describe('library.core.tests', ...)` — 点分隔
+
+2. **`it()` 测试用例名称规范：**
+   - ✅ **必须符合**：不能包含空格
+   - 推荐使用**驼峰命名**（camelCase）
+   
+   **示例：**
+   - ❌ 错误：`it('should add numbers', ...)` — 包含空格
+   - ✅ 正确：`it('shouldAddNumbers', ...)` — 驼峰命名
+   - ✅ 正确：`it('testUserLogin', ...)` — 驼峰命名
+   - ✅ 正确：`it('test001', ...)` — 无分隔符
+
+**命名规范总结：**
+- `describe()` 和 `it()` 的名称都不能包含空格
+- `describe()` 只能包含字母、数字、下划线、点，且必须以字母开头
+- `it()` 推荐使用驼峰命名
+- 用例名应清晰描述测试的预期行为
 
 ---
 
@@ -69,22 +99,33 @@ hypium 提供了丰富的断言方法，用于验证测试结果。
 | 方法 | 说明 | 示例 |
 |------|------|------|
 | `assertEqual(value)` | 断言相等 | `expect(result).assertEqual(5)` |
-| `assertNotEqual(value)` | 断言不相等 | `expect(result).assertNotEqual(0)` |
 | `assertTrue()` | 断言为 true | `expect(flag).assertTrue()` |
 | `assertFalse()` | 断言为 false | `expect(flag).assertFalse()` |
+| `assertFail(message)` | 抛出错误，使测试失败 | `expect().assertFail('Unexpected error')` |
+
+**⚠️ 断言不相等：** 使用 `not().assertEqual(value)`，例如：`expect(result).not().assertEqual(0)`
 
 ### 空值断言
 
 | 方法 | 说明 | 示例 |
 |------|------|------|
 | `assertNull()` | 断言为 null | `expect(obj).assertNull()` |
-| `assertNotNull()` | 断言不为 null | `expect(obj).assertNotNull()` |
 | `assertUndefined()` | 断言为 undefined | `expect(value).assertUndefined()` |
-| `assertNotUndefined()` | 断言不为 undefined | `expect(value).assertNotUndefined()` |
 | `assertNaN()` | 断言为 NaN | `expect(result).assertNaN()` |
-| `assertNotNaN()` | 断言不为 NaN | `expect(result).assertNotNaN()` |
 | `assertNegUnlimited()` | 断言为负无穷 | `expect(value).assertNegUnlimited()` |
 | `assertPosUnlimited()` | 断言为正无穷 | `expect(value).assertPosUnlimited()` |
+
+**⚠️ 取反断言（not）**
+
+从 @ohos/hypium 1.0.4 开始支持 `not()` 方法，用于对所有断言取反：
+
+| 需求 | 写法 | 示例 |
+|------|------|------|
+| 断言不为 null | `not().assertNull()` | `expect(obj).not().assertNull()` |
+| 断言不为 undefined | `not().assertUndefined()` | `expect(value).not().assertUndefined()` |
+| 断言不为 NaN | `not().assertNaN()` | `expect(result).not().assertNaN()` |
+| 断言不相等 | `not().assertEqual(value)` | `expect(result).not().assertEqual(0)` |
+| 断言不包含 | `not().assertContain(element)` | `expect(list).not().assertContain('item')` |
 
 ### 类型断言
 
@@ -97,7 +138,9 @@ hypium 提供了丰富的断言方法，用于验证测试结果。
 | 方法 | 说明 | 示例 |
 |------|------|------|
 | `assertLarger(value)` | 断言大于指定值 | `expect(score).assertLarger(60)` |
+| `assertLargerOrEqual(value)` | 断言大于或等于指定值 | `expect(score).assertLargerOrEqual(60)` |
 | `assertLess(value)` | 断言小于指定值 | `expect(age).assertLess(100)` |
+| `assertLessOrEqual(value)` | 断言小于或等于指定值 | `expect(age).assertLessOrEqual(100)` |
 | `assertClose(value, delta)` | 断言接近指定值（误差范围内） | `expect(pi).assertClose(3.14, 0.01)` |
 
 ### 集合断言
@@ -105,8 +148,9 @@ hypium 提供了丰富的断言方法，用于验证测试结果。
 | 方法 | 说明 | 示例 |
 |------|------|------|
 | `assertContain(element)` | 断言包含指定元素 | `expect(list).assertContain('item')` |
-| `assertNotContain(element)` | 断言不包含指定元素 | `expect(list).assertNotContain('item')` |
 | `assertDeepEquals(object)` | 断言深度相等（递归比较） | `expect(obj1).assertDeepEquals(obj2)` |
+
+**⚠️ 断言不包含：** 使用 `not().assertContain(element)`，例如：`expect(list).not().assertContain('item')`
 
 ### 异常断言
 
@@ -138,8 +182,10 @@ hypium 提供了丰富的断言方法，用于验证测试结果。
 | `@Before` | `beforeAll()`, `beforeEach()` | 前置操作 |
 | `@After` | `afterAll()`, `afterEach()` | 后置操作 |
 | `assertEquals()` | `expect().assertEqual()` | 断言相等 |
+| `assertNotEquals()` | `expect().not().assertEqual()` | 断言不相等 |
 | `assertTrue()` | `expect().assertTrue()` | 断言真值 |
 | `assertNull()` | `expect().assertNull()` | 断言空值 |
+| `assertNotNull()` | `expect().not().assertNull()` | 断言非空值 |
 
 ### 断言语法对比
 
@@ -160,7 +206,7 @@ it('testAdd', () => {
   let result = Calculator.add(2, 3);
   expect(result).assertEqual(5);
   expect(result > 0).assertTrue();
-  expect(result).assertNotNull();
+  expect(result).not().assertNull(); // 使用 not() 实现 assertNotNull
 });
 ```
 
@@ -272,7 +318,7 @@ it('shouldDisplayWelcomeText', async () => {
   let text = await driver.findComponent(ON.text('Welcome'));
   
   // 断言组件存在
-  expect(text).assertNotNull();
+  expect(text).not().assertNull();
   
   // 点击按钮
   let button = await driver.findComponent(ON.id('btn_start'));
@@ -280,7 +326,7 @@ it('shouldDisplayWelcomeText', async () => {
   
   // 验证页面跳转
   let newText = await driver.findComponent(ON.text('Started'));
-  expect(newText).assertNotNull();
+  expect(newText).not().assertNull();
 });
 ```
 
@@ -335,10 +381,20 @@ hvigorw --mode module test --test-file Ability.test.ets
 
 ### 1. 命名规范
 
-- 测试文件：`*.test.ets`
-- 测试方法：`it('testCaseName', () => {})`
-- **⚠️ 用例名称必须是无空格驼峰命名**（如 `shouldAddNumbers`、`testUserLogin`），不能使用空格分隔
-- 描述清晰：用例名应清晰描述测试的预期行为
+- **测试文件**：`*.test.ets`
+- **测试套件**：`describe('TestSuiteName', () => {})`
+  - ⚠️ **只能包含**：字母、数字、下划线 `_`、点 `.`
+  - ⚠️ **必须以字母开头**
+  - ⚠️ **不能包含空格**或其他特殊字符
+  - 推荐使用**驼峰命名**（CamelCase）
+  - ❌ 错误：`describe('My Library Tests', ...)` —— 包含空格
+  - ✅ 正确：`describe('MyLibraryTests', ...)` —— 驼峰命名
+- **测试用例**：`it('testCaseName', () => {})`
+  - ⚠️ **不能包含空格**
+  - 推荐使用**驼峰命名**（camelCase）
+  - ❌ 错误：`it('should add numbers', ...)` —— 包含空格
+  - ✅ 正确：`it('shouldAddNumbers', ...)` —— 驼峰命名
+- **描述清晰**：用例名应清晰描述测试的预期行为
 
 ### 2. 独立性
 
@@ -380,10 +436,14 @@ jest.spyOn(http, 'createHttp').mockReturnValue({
 从 Android 测试迁移到 OpenHarmony 时：
 
 - [ ] 将 `@Test` 注解改为 `it()` 函数
-- [ ] **⚠️ 将测试用例名改为驼峰命名（不能有空格）**，如 `it('shouldAddNumbers', ...)`
+- [ ] **⚠️ 将测试套件名改为符合规范的命名**：`describe('TestSuiteName', ...)`
+  - 只能包含字母、数字、下划线、点，必须以字母开头
+  - 不能包含空格（如 `'My Tests'` → `'MyTests'`）
+- [ ] **⚠️ 将测试用例名改为驼峰命名（不能有空格）**：`it('shouldAddNumbers', ...)`
 - [ ] 将 `@Before/@After` 改为 `beforeEach()/afterEach()`
 - [ ] 将 `assertEquals(expected, actual)` 改为 `expect(actual).assertEqual(expected)`
 - [ ] 将 `assertTrue(condition)` 改为 `expect(condition).assertTrue()`
+- [ ] 将 `assertNotNull(value)` 改为 `expect(value).not().assertNull()`（使用 `not()` 取反）
 - [ ] 将 Mockito mock 改为 hypium 的 mock 方式
 - [ ] 异步测试使用 `async/await` 替代回调
 - [ ] UI 测试使用 `@ohos.UiTest` 替代 Espresso
