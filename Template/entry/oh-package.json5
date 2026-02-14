@@ -1,10 +1,12 @@
 {
   "name": "entry",
   "version": "1.0.0",
-  "description": "Please describe the basic information.",
+  "description": "LibAES Demo Application",
   "main": "",
   "author": "",
   "license": "",
-  "dependencies": {}
+  "dependencies": {
+    "library": "file:../library"
+  }
 }
 
