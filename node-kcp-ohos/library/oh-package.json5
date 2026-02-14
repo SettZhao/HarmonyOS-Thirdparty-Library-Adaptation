@@ -1,0 +1,11 @@
+{
+  "name": "kcp",
+  "version": "1.0.0",
+  "description": "KCP Protocol - A Fast and Reliable ARQ Protocol for OpenHarmony",
+  "main": "Index.ets",
+  "author": "Ported from node-kcp",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "libkcp.so": "file:./src/main/cpp/types/libkcp"
+  }
+}

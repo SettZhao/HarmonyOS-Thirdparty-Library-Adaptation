@@ -96,7 +96,8 @@ OpenHarmony UIAbility:  onCreate → onWindowStageCreate → onForeground → on
 | `Retrofit` | 手动封装 或 `@ohos/axios` | 需重写接口层 |
 | `Volley` | `http.createHttp()` | |
 | `WebSocket` | `webSocket.createWebSocket()` | `import webSocket from '@ohos.net.webSocket'` |
-| `Socket` | `socket.constructTCPSocketInstance()` | `import socket from '@ohos.net.socket'` |
+| `Socket` (TCP) | `socket.constructTCPSocketInstance()` | `import socket from '@ohos.net.socket'` |
+| `DatagramSocket` (UDP) | `socket.constructUDPSocketInstance()` | 详见 [refs/udp-socket.md](refs/udp-socket.md) |
 | `ConnectivityManager` | `connection` | `import connection from '@ohos.net.connection'` |
 
 ### HTTP Request Example

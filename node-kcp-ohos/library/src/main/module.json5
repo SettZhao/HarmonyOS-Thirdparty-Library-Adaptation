@@ -1,0 +1,10 @@
+{
+  "module": {
+    "name": "library",
+    "type": "har",
+    "description": "KCP protocol library for OpenHarmony",
+    "deviceTypes": [
+      "default"
+    ]
+  }
+}
