@@ -1,103 +1,142 @@
+#Requires -Version 5.1
 <#
 .SYNOPSIS
-    检查 HarmonyOS 开发环境变量
+    Check HarmonyOS development environment
 
 .DESCRIPTION
-    在执行移植工作流之前，检查必要的工具是否已配置：
-    - hvigorw: 构建工具（类似 Gradle）
-    - hdc: 设备连接工具（类似 adb）
-    - node: Node.js 运行时
+    Verify required tools before migration:
+    - hvigorw: Build tool (like Gradle)
+    - hdc: Device connection tool (like adb)
+    - node: Node.js runtime
 
 .EXAMPLE
     .\check_env.ps1
 #>
 
-$ErrorCount = 0
+[CmdletBinding()]
+param()
 
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  HarmonyOS 开发环境检查" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
+$ErrorActionPreference = "Continue"
+$script:ErrorCount = 0
 
-# 检查 hvigorw
-Write-Host "[1/4] 检查 hvigorw (构建工具)..." -NoNewline
-$hvigorw = Get-Command hvigorw -ErrorAction SilentlyContinue
-if ($hvigorw) {
-    Write-Host " ✅ 已配置" -ForegroundColor Green
-    Write-Host "      路径: $($hvigorw.Source)" -ForegroundColor Gray
-} else {
-    Write-Host " ❌ 未找到" -ForegroundColor Red
-    Write-Host "      请确保 DevEco Studio 的 command-line-tools 已添加到 PATH" -ForegroundColor Yellow
-    Write-Host "      通常路径: <DevEco-Studio>\tools\hvigor\bin" -ForegroundColor Yellow
-    $ErrorCount++
+function Write-ColorText {
+    param(
+        [string]$Text,
+        [string]$Color = "White",
+        [switch]$NoNewline
+    )
+    if ($NoNewline) {
+        Write-Host $Text -ForegroundColor $Color -NoNewline
+    } else {
+        Write-Host $Text -ForegroundColor $Color
+    }
 }
 
-# 检查 hdc
-Write-Host "[2/4] 检查 hdc (设备连接工具)..." -NoNewline
-$hdc = Get-Command hdc -ErrorAction SilentlyContinue
-if ($hdc) {
-    Write-Host " ✅ 已配置" -ForegroundColor Green
-    Write-Host "      路径: $($hdc.Source)" -ForegroundColor Gray
+function Test-CommandExists {
+    param([string]$Command)
+    $null -ne (Get-Command $Command -ErrorAction SilentlyContinue)
+}
 
-    # 检查设备连接
-    Write-Host "      检查设备连接..." -NoNewline
+# Start
+Write-Host ""
+Write-ColorText "========================================" "Cyan"
+Write-ColorText "  HarmonyOS Environment Check" "Cyan"
+Write-ColorText "========================================" "Cyan"
+Write-Host ""
+
+# 1. Check hvigorw
+Write-ColorText "[1/4] Checking hvigorw (build tool)..." "White" -NoNewline
+if (Test-CommandExists "hvigorw") {
+    $hvigorw = Get-Command hvigorw
+    Write-ColorText " OK" "Green"
+    Write-ColorText "      Path: $($hvigorw.Source)" "Gray"
+} else {
+    Write-ColorText " NOT FOUND" "Red"
+    Write-ColorText "      Add DevEco Studio command-line-tools to PATH" "Yellow"
+    Write-ColorText "      Example: DevEco-Studio\tools\hvigor\bin" "Yellow"
+    $script:ErrorCount++
+}
+
+# 2. Check hdc
+Write-ColorText "[2/4] Checking hdc (device tool)..." "White" -NoNewline
+if (Test-CommandExists "hdc") {
+    $hdc = Get-Command hdc
+    Write-ColorText " OK" "Green"
+    Write-ColorText "      Path: $($hdc.Source)" "Gray"
+    
+    # Check connected devices
+    Write-ColorText "      Checking devices..." "White" -NoNewline
     try {
-        $targets = & hdc list targets 2>&1
-        $targetList = ($targets | Where-Object { $_ -and $_ -ne "[Empty]" })
-        if ($targetList) {
-            Write-Host " ✅ 已连接设备" -ForegroundColor Green
-            foreach ($t in $targetList) {
-                Write-Host "        - $t" -ForegroundColor Gray
+        $targets = & hdc list targets 2>&1 | Where-Object { 
+            $_ -and $_ -ne "[Empty]" -and $_ -notmatch "^\s*$" 
+        }
+        if ($targets -and $targets.Count -gt 0) {
+            Write-ColorText " Connected" "Green"
+            foreach ($t in $targets) {
+                Write-ColorText "        - $t" "Gray"
             }
         } else {
-            Write-Host " ⚠️  未检测到设备" -ForegroundColor Yellow
-            Write-Host "        安装 HAP 时需要连接设备或模拟器" -ForegroundColor Yellow
+            Write-ColorText " No device" "Yellow"
+            Write-ColorText "        Connect device for HAP installation" "Yellow"
         }
     } catch {
-        Write-Host " ⚠️  无法检测设备" -ForegroundColor Yellow
+        Write-ColorText " Cannot detect" "Yellow"
     }
 } else {
-    Write-Host " ❌ 未找到" -ForegroundColor Red
-    Write-Host "      请确保 HarmonyOS SDK 的 toolchains 已添加到 PATH" -ForegroundColor Yellow
-    Write-Host "      通常路径: <HarmonyOS-SDK>\openharmony\toolchains" -ForegroundColor Yellow
-    $ErrorCount++
+    Write-ColorText " NOT FOUND" "Red"
+    Write-ColorText "      Add HarmonyOS SDK toolchains to PATH" "Yellow"
+    Write-ColorText "      Example: HarmonyOS-SDK\openharmony\toolchains" "Yellow"
+    $script:ErrorCount++
 }
 
-# 检查 node
-Write-Host "[3/4] 检查 node (Node.js)..." -NoNewline
-$node = Get-Command node -ErrorAction SilentlyContinue
-if ($node) {
-    $nodeVersion = & node --version 2>&1
-    Write-Host " ✅ 已配置 ($nodeVersion)" -ForegroundColor Green
+# 3. Check node
+Write-ColorText "[3/4] Checking node (Node.js)..." "White" -NoNewline
+if (Test-CommandExists "node") {
+    try {
+        $nodeVersion = & node --version 2>&1
+        Write-ColorText " OK ($nodeVersion)" "Green"
+    } catch {
+        Write-ColorText " ERROR" "Red"
+        $script:ErrorCount++
+    }
 } else {
-    Write-Host " ❌ 未找到" -ForegroundColor Red
-    Write-Host "      hvigorw 依赖 Node.js，请安装 Node.js 16+" -ForegroundColor Yellow
-    $ErrorCount++
+    Write-ColorText " NOT FOUND" "Red"
+    Write-ColorText "      hvigorw requires Node.js 16+" "Yellow"
+    $script:ErrorCount++
 }
 
-# 检查 python (用于分析脚本)
-Write-Host "[4/4] 检查 python (分析脚本)..." -NoNewline
-$python = Get-Command python -ErrorAction SilentlyContinue
-if (-not $python) {
-    $python = Get-Command python3 -ErrorAction SilentlyContinue
+# 4. Check python
+Write-ColorText "[4/4] Checking python (analysis scripts)..." "White" -NoNewline
+$pythonCmd = $null
+if (Test-CommandExists "python") {
+    $pythonCmd = "python"
+} elseif (Test-CommandExists "python3") {
+    $pythonCmd = "python3"
 }
-if ($python) {
-    $pyVersion = & $python.Source --version 2>&1
-    Write-Host " ✅ 已配置 ($pyVersion)" -ForegroundColor Green
+
+if ($pythonCmd) {
+    try {
+        $pyVersion = & $pythonCmd --version 2>&1
+        Write-ColorText " OK ($pyVersion)" "Green"
+    } catch {
+        Write-ColorText " ERROR" "Yellow"
+    }
 } else {
-    Write-Host " ⚠️  未找到 (可选)" -ForegroundColor Yellow
-    Write-Host "      analyze_library.py 分析脚本需要 Python 3.6+" -ForegroundColor Yellow
+    Write-ColorText " NOT FOUND (optional)" "Yellow"
+    Write-ColorText "      analyze_library.py requires Python 3.6+" "Yellow"
 }
 
-# 结果汇总
+# Summary
 Write-Host ""
-Write-Host "========================================" -ForegroundColor Cyan
-if ($ErrorCount -eq 0) {
-    Write-Host "  ✅ 环境检查通过，可以开始移植工作" -ForegroundColor Green
+Write-ColorText "========================================" "Cyan"
+if ($script:ErrorCount -eq 0) {
+    Write-ColorText "  ENVIRONMENT CHECK PASSED" "Green"
+    Write-ColorText "  Ready to start migration!" "Green"
 } else {
-    Write-Host "  ❌ 发现 $ErrorCount 个问题，请先修复" -ForegroundColor Red
+    Write-ColorText "  FOUND $script:ErrorCount ISSUE(S)" "Red"
+    Write-ColorText "  Please fix the issues above" "Red"
 }
-Write-Host "========================================" -ForegroundColor Cyan
+Write-ColorText "========================================" "Cyan"
 Write-Host ""
 
-exit $ErrorCount
+exit $script:ErrorCount

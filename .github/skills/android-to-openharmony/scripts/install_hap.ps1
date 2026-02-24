@@ -34,113 +34,151 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# 切换到项目目录
+function Write-ColorText {
+    param([string]$Text, [string]$Color = "White", [switch]$NoNewline)
+    if ($NoNewline) {
+        Write-Host $Text -ForegroundColor $Color -NoNewline
+    } else {
+        Write-Host $Text -ForegroundColor $Color
+    }
+}
+
+# Switch to project directory
 Push-Location $ProjectPath
 
 try {
     $hapPath = "entry\build\default\outputs\default\entry-default-signed.hap"
 
-    Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "  HarmonyOS HAP 安装工具" -ForegroundColor Cyan
-    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-ColorText "========================================" "Cyan"
+    Write-ColorText "  HarmonyOS HAP Installation Tool" "Cyan"
+    Write-ColorText "========================================" "Cyan"
     Write-Host ""
 
-    # Step 1: 检查 hdc
-    Write-Host "[Step 1] 检查 hdc 工具..." -NoNewline
+    # Step 1: Check hdc
+    Write-ColorText "[Step 1] Checking hdc tool..." "White" -NoNewline
     $hdc = Get-Command hdc -ErrorAction SilentlyContinue
     if (-not $hdc) {
-        Write-Host " ❌ hdc 未找到，请配置环境变量" -ForegroundColor Red
+        Write-ColorText " NOT FOUND" "Red"
+        Write-ColorText "         Please add hdc to PATH" "Yellow"
         exit 1
     }
-    Write-Host " ✅" -ForegroundColor Green
+    Write-ColorText " OK" "Green"
 
-    # Step 2: 检查设备连接
-    Write-Host "[Step 2] 检查设备连接..." -NoNewline
-    $targets = & hdc list targets 2>&1
-    $targetList = ($targets | Where-Object { $_ -and $_ -ne "[Empty]" })
-    if (-not $targetList) {
-        Write-Host " ❌ 未检测到设备" -ForegroundColor Red
-        Write-Host "         请连接手机并确保 USB 调试已开启" -ForegroundColor Yellow
+    # Step 2: Check device connection
+    Write-ColorText "[Step 2] Checking device connection..." "White" -NoNewline
+    try {
+        $targets = & hdc list targets 2>&1
+        $targetList = ($targets | Where-Object { $_ -and $_ -ne "[Empty]" -and $_ -notmatch "^\s*$" })
+        if (-not $targetList -or $targetList.Count -eq 0) {
+            Write-ColorText " NO DEVICE" "Red"
+            Write-ColorText "         Please connect device and enable USB debugging" "Yellow"
+            exit 1
+        }
+        Write-ColorText " OK: $($targetList[0])" "Green"
+    } catch {
+        Write-ColorText " ERROR" "Red"
+        Write-ColorText "         Failed to check device: $($_.Exception.Message)" "Yellow"
         exit 1
     }
-    Write-Host " ✅ 设备: $($targetList[0])" -ForegroundColor Green
 
-    # Step 3: 编译 (可选)
+    # Step 3: Build (optional)
     if (-not $SkipBuild) {
-        Write-Host "[Step 3] 编译 HAP..." -ForegroundColor Cyan
+        Write-ColorText "[Step 3] Building HAP..." "Cyan"
 
-        Write-Host "  清理旧构建产物..."
-        & hvigorw clean 2>&1 | Out-Null
+        Write-ColorText "  Cleaning old build artifacts..." "Gray"
+        try {
+            & hvigorw clean 2>&1 | Out-Null
+        } catch {
+            Write-ColorText "  Warning: Clean failed, continuing..." "Yellow"
+        }
 
-        Write-Host "  编译中 (hvigorw assembleHap)..."
+        Write-ColorText "  Building (hvigorw assembleHap)..." "Gray"
         $buildOutput = & hvigorw assembleHap 2>&1
         $buildResult = $LASTEXITCODE
 
         if ($buildResult -ne 0) {
-            Write-Host "  ❌ 编译失败" -ForegroundColor Red
+            Write-ColorText "  BUILD FAILED" "Red"
             Write-Host ""
-            Write-Host "--- 编译错误输出 ---" -ForegroundColor Yellow
+            Write-ColorText "--- Build Error Output ---" "Yellow"
             $buildOutput | Select-Object -Last 30 | ForEach-Object { Write-Host $_ }
-            Write-Host "--- 编译错误结束 ---" -ForegroundColor Yellow
+            Write-ColorText "--- End of Build Error ---" "Yellow"
             Write-Host ""
-            Write-Host "请根据错误信息修复代码后重试" -ForegroundColor Yellow
+            Write-ColorText "Please fix the errors and retry" "Yellow"
             exit 1
         }
-        Write-Host "  ✅ 编译成功" -ForegroundColor Green
+        Write-ColorText "  Build successful" "Green"
     } else {
-        Write-Host "[Step 3] 跳过编译 (-SkipBuild)" -ForegroundColor Gray
+        Write-ColorText "[Step 3] Skipped build (-SkipBuild)" "Gray"
     }
 
-    # Step 4: 检查 HAP 文件
-    Write-Host "[Step 4] 检查 HAP 文件..." -NoNewline
+    # Step 4: Check HAP file
+    Write-ColorText "[Step 4] Checking HAP file..." "White" -NoNewline
     if (-not (Test-Path $hapPath)) {
-        Write-Host " ❌ HAP 文件不存在: $hapPath" -ForegroundColor Red
-        Write-Host "         请先运行 'hvigorw assembleHap' 编译" -ForegroundColor Yellow
+        Write-ColorText " NOT FOUND" "Red"
+        Write-ColorText "         HAP file does not exist: $hapPath" "Yellow"
+        Write-ColorText "         Please run 'hvigorw assembleHap' first" "Yellow"
         exit 1
     }
     $hapSize = (Get-Item $hapPath).Length
     $hapSizeMB = [math]::Round($hapSize / 1MB, 2)
-    Write-Host " ✅ ($hapSizeMB MB)" -ForegroundColor Green
+    Write-ColorText " OK ($hapSizeMB MB)" "Green"
 
-    # Step 5: 卸载旧版本 (可选)
+    # Step 5: Uninstall old version (optional)
     if ($Uninstall) {
-        Write-Host "[Step 5] 卸载旧版本 ($BundleName)..." -NoNewline
-        & hdc uninstall $BundleName 2>&1 | Out-Null
-        Write-Host " ✅" -ForegroundColor Green
+        Write-ColorText "[Step 5] Uninstalling old version ($BundleName)..." "White" -NoNewline
+        try {
+            & hdc uninstall $BundleName 2>&1 | Out-Null
+            Write-ColorText " OK" "Green"
+        } catch {
+            Write-ColorText " Failed (may not exist)" "Yellow"
+        }
     }
 
-    # Step 6: 安装
-    Write-Host "[Step 6] 安装 HAP 到设备..." -NoNewline
-    $installOutput = & hdc install $hapPath 2>&1
-    $installStr = $installOutput -join " "
+    # Step 6: Install
+    $stepNum = if ($Uninstall) { "6" } else { "5" }
+    Write-ColorText "[Step $stepNum] Installing HAP to device..." "White" -NoNewline
+    try {
+        $installOutput = & hdc install $hapPath 2>&1
+        $installStr = $installOutput -join " "
 
-    if ($installStr -match "success") {
-        Write-Host " ✅ 安装成功" -ForegroundColor Green
-    } else {
-        Write-Host " ❌ 安装失败" -ForegroundColor Red
-        Write-Host ""
-        Write-Host "--- 安装错误 ---" -ForegroundColor Yellow
-        Write-Host $installStr
-        Write-Host "--- 安装错误结束 ---" -ForegroundColor Yellow
+        if ($installStr -match "success") {
+            Write-ColorText " SUCCESS" "Green"
+        } else {
+            Write-ColorText " FAILED" "Red"
+            Write-Host ""
+            Write-ColorText "--- Installation Error ---" "Yellow"
+            Write-Host $installStr
+            Write-ColorText "--- End of Error ---" "Yellow"
 
-        if ($installStr -match "already exist") {
-            Write-Host ""
-            Write-Host "提示：旧版本已安装，请使用 -Uninstall 参数先卸载" -ForegroundColor Yellow
-            Write-Host "  .\install_hap.ps1 -Uninstall" -ForegroundColor Cyan
+            if ($installStr -match "already exist") {
+                Write-Host ""
+                Write-ColorText "Hint: Old version exists, use -Uninstall to remove it" "Yellow"
+                Write-ColorText "  .\install_hap.ps1 -Uninstall" "Cyan"
+            }
+            if ($installStr -match "signature") {
+                Write-Host ""
+                Write-ColorText "Hint: Signature verification failed" "Yellow"
+                Write-ColorText "      Ensure bundleName is 'com.example.template'" "Yellow"
+            }
+            exit 1
         }
-        if ($installStr -match "signature") {
-            Write-Host ""
-            Write-Host "提示：签名验证失败，请确保 bundleName 为 'com.example.template'" -ForegroundColor Yellow
-        }
+    } catch {
+        Write-ColorText " ERROR" "Red"
+        Write-ColorText "         $($_.Exception.Message)" "Yellow"
         exit 1
     }
 
     Write-Host ""
-    Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "  ✅ 安装完成！" -ForegroundColor Green
-    Write-Host "  包名: $BundleName" -ForegroundColor Gray
-    Write-Host "========================================" -ForegroundColor Cyan
+    Write-ColorText "========================================" "Cyan"
+    Write-ColorText "  INSTALLATION COMPLETE" "Green"
+    Write-ColorText "  Bundle: $BundleName" "Gray"
+    Write-ColorText "========================================" "Cyan"
+    Write-Host ""
 
+} catch {
+    Write-ColorText "Unexpected error: $($_.Exception.Message)" "Red"
+    exit 1
 } finally {
     Pop-Location
 }
