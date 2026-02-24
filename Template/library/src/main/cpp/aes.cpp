@@ -274,7 +274,17 @@ int aes_pkcs7_unpad(const uint8_t* data, size_t dataLen, size_t* unpaddedLen) {
 int aes_cbc_encrypt(const AesContext* ctx, const uint8_t* iv,
                     const uint8_t* input, size_t inputLen,
                     uint8_t* output, size_t* outputLen) {
-    if (!ctx || !iv || !input || !output || !outputLen) {
+    if (!ctx || !iv || !output || !outputLen) {
+        return AES_ERROR;
+    }
+    
+    // Allow nullptr input only when inputLen is 0 (empty string encryption)
+    if (input == nullptr && inputLen != 0) {
+        return AES_ERROR;
+    }
+    
+    // Validate input length (max 10MB to prevent excessive memory allocation)
+    if (inputLen > 10 * 1024 * 1024) {
         return AES_ERROR;
     }
     
@@ -282,9 +292,20 @@ int aes_cbc_encrypt(const AesContext* ctx, const uint8_t* iv,
     size_t paddedLen = ((inputLen / AES_BLOCK_SIZE) + 1) * AES_BLOCK_SIZE;
     *outputLen = paddedLen;
     
-    // Copy input and apply padding
-    uint8_t* tempBuffer = new uint8_t[paddedLen];
-    memcpy(tempBuffer, input, inputLen);
+    // Allocate temporary buffer with error handling
+    uint8_t* tempBuffer = nullptr;
+    try {
+        tempBuffer = new uint8_t[paddedLen];
+    } catch (const std::bad_alloc&) {
+        return AES_ERROR;
+    }
+    
+    // Copy input and apply padding (handle empty input)
+    if (inputLen > 0 && input != nullptr) {
+        memcpy(tempBuffer, input, inputLen);
+    }
+    // For empty input (inputLen=0), tempBuffer is already allocated but not initialized
+    // The padding will fill the entire block
     aes_pkcs7_pad(tempBuffer, inputLen, AES_BLOCK_SIZE);
     
     // Initialize IV

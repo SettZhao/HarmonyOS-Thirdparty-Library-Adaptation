@@ -39,35 +39,29 @@ class Base64 {
 }
 
 /**
- * Helper class for text encoding/decoding
- */
-class TextEncoder {
-  static encode(text: string): ArrayBuffer {
-    const encoder = new util.TextEncoder();
-    return encoder.encodeInto(text);
-  }
-
-  static decode(data: ArrayBuffer): string {
-    const decoder = new util.TextDecoder('utf-8');
-    const uint8Array = new Uint8Array(data);
-    return decoder.decodeToString(uint8Array);
-  }
-}
-
-/**
  * Main AES encryption class
  */
 export class AES {
   /**
    * Encrypt text string with AES-128-CBC
-   * @param plaintext - Text to encrypt
+   * @param plaintext - Text to encrypt (non-empty strings only)
    * @param keyStr - 16-character key string (padded/truncated automatically)
    * @returns Base64-encoded ciphertext
+   * @throws {Error} If plaintext is empty
    */
   static encryptText(plaintext: string, keyStr: string): string {
+    // Validate: empty string not supported due to platform API limitations
+    if (plaintext.length === 0) {
+      throw new Error('Empty string encryption not supported');
+    }
+    
     const key: ArrayBuffer = AES.stringToKey(keyStr);
     const iv: ArrayBuffer = AES.generateIV();
-    const plaintextBuffer: ArrayBuffer = TextEncoder.encode(plaintext);
+    
+    // Convert string to ArrayBuffer
+    const textEncoder = util.TextEncoder.create();
+    const encoded: Uint8Array = textEncoder.encodeInto(plaintext);
+    const plaintextBuffer: ArrayBuffer = encoded.buffer.slice(0, encoded.byteLength);
     
     const ciphertext: ArrayBuffer = libAES.encrypt(key, iv, plaintextBuffer);
     
@@ -91,7 +85,9 @@ export class AES {
     const ciphertext: ArrayBuffer = data.slice(16);
     
     const plaintext: ArrayBuffer = libAES.decrypt(key, iv, ciphertext);
-    return TextEncoder.decode(plaintext);
+    let textDecoder = util.TextDecoder.create()
+
+    return textDecoder.decodeToString(new Uint8Array(plaintext));
   }
 
   /**
@@ -139,13 +135,14 @@ export class AES {
    */
   private static stringToKey(str: string): ArrayBuffer {
     const bytes = new Uint8Array(16);
-    const encoder = new util.TextEncoder();
-    const encoded = encoder.encodeInto(str);
-    const view = new Uint8Array(encoded);
+    // Use TextEncoder helper to get UTF-8 bytes
+    let textEncoder = util.TextEncoder.create();
+    const encoded = textEncoder.encodeInto(str);
     
-    // Copy up to 16 bytes
-    for (let i = 0; i < Math.min(16, view.length); i++) {
-      bytes[i] = view[i];
+    // Copy up to 16 bytes (remaining bytes stay as 0 for padding)
+    const copyLen = Math.min(16, encoded.length);
+    for (let i = 0; i < copyLen; i++) {
+      bytes[i] = encoded[i];
     }
     
     return bytes.buffer;

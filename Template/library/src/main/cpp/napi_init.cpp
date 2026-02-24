@@ -12,7 +12,12 @@
 // Helper: Get ArrayBuffer data
 static uint8_t* GetArrayBufferData(napi_env env, napi_value value, size_t* length) {
     void* data = nullptr;
-    napi_get_arraybuffer_info(env, value, &data, length);
+    napi_status status = napi_get_arraybuffer_info(env, value, &data, length);
+    if (status != napi_ok) {
+        OH_LOG_ERROR(LOG_APP, "GetArrayBufferData: napi_get_arraybuffer_info failed with status %{public}d", status);
+        *length = 0;
+        return nullptr;
+    }
     return static_cast<uint8_t*>(data);
 }
 
@@ -42,6 +47,11 @@ static napi_value Encrypt(napi_env env, napi_callback_info info) {
     // Get key
     size_t keyLen;
     uint8_t* key = GetArrayBufferData(env, args[0], &keyLen);
+    if (key == nullptr) {
+        napi_throw_error(env, nullptr, "Invalid key ArrayBuffer");
+        return nullptr;
+    }
+    OH_LOG_INFO(LOG_APP, "Encrypt: key length = %{public}zu", keyLen);
     if (keyLen != AES_128_KEY_SIZE) {
         napi_throw_error(env, nullptr, "Key must be 16 bytes (AES-128)");
         return nullptr;
@@ -50,6 +60,11 @@ static napi_value Encrypt(napi_env env, napi_callback_info info) {
     // Get IV
     size_t ivLen;
     uint8_t* iv = GetArrayBufferData(env, args[1], &ivLen);
+    if (iv == nullptr) {
+        napi_throw_error(env, nullptr, "Invalid IV ArrayBuffer");
+        return nullptr;
+    }
+    OH_LOG_INFO(LOG_APP, "Encrypt: IV length = %{public}zu", ivLen);
     if (ivLen != AES_BLOCK_SIZE) {
         napi_throw_error(env, nullptr, "IV must be 16 bytes");
         return nullptr;
@@ -58,6 +73,16 @@ static napi_value Encrypt(napi_env env, napi_callback_info info) {
     // Get plaintext
     size_t plaintextLen;
     uint8_t* plaintext = GetArrayBufferData(env, args[2], &plaintextLen);
+    OH_LOG_INFO(LOG_APP, "Encrypt: plaintext length = %{public}zu", plaintextLen);
+    
+    // Allow empty plaintext (for empty string encryption)
+    // plaintext pointer may be nullptr when plaintextLen is 0
+    
+    // Validate plaintext length (max 10MB)
+    if (plaintextLen > 10 * 1024 * 1024) {
+        napi_throw_error(env, nullptr, "Plaintext too large (max 10MB)");
+        return nullptr;
+    }
     
     // Initialize AES context
     AesContext ctx;
@@ -67,9 +92,10 @@ static napi_value Encrypt(napi_env env, napi_callback_info info) {
         return nullptr;
     }
     
-    // Encrypt
+    // Encrypt (reserve enough space for padding)
     size_t ciphertextLen;
-    std::vector<uint8_t> ciphertext(plaintextLen + AES_BLOCK_SIZE);
+    size_t maxCiphertextLen = plaintextLen + AES_BLOCK_SIZE;
+    std::vector<uint8_t> ciphertext(maxCiphertextLen);
     result = aes_cbc_encrypt(&ctx, iv, plaintext, plaintextLen, 
                              ciphertext.data(), &ciphertextLen);
     
@@ -99,6 +125,10 @@ static napi_value Decrypt(napi_env env, napi_callback_info info) {
     // Get key
     size_t keyLen;
     uint8_t* key = GetArrayBufferData(env, args[0], &keyLen);
+    if (key == nullptr) {
+        napi_throw_error(env, nullptr, "Invalid key ArrayBuffer");
+        return nullptr;
+    }
     if (keyLen != AES_128_KEY_SIZE) {
         napi_throw_error(env, nullptr, "Key must be 16 bytes (AES-128)");
         return nullptr;
@@ -107,6 +137,10 @@ static napi_value Decrypt(napi_env env, napi_callback_info info) {
     // Get IV
     size_t ivLen;
     uint8_t* iv = GetArrayBufferData(env, args[1], &ivLen);
+    if (iv == nullptr) {
+        napi_throw_error(env, nullptr, "Invalid IV ArrayBuffer");
+        return nullptr;
+    }
     if (ivLen != AES_BLOCK_SIZE) {
         napi_throw_error(env, nullptr, "IV must be 16 bytes");
         return nullptr;
@@ -115,6 +149,10 @@ static napi_value Decrypt(napi_env env, napi_callback_info info) {
     // Get ciphertext
     size_t ciphertextLen;
     uint8_t* ciphertext = GetArrayBufferData(env, args[2], &ciphertextLen);
+    if (ciphertext == nullptr) {
+        napi_throw_error(env, nullptr, "Invalid ciphertext ArrayBuffer");
+        return nullptr;
+    }
     
     if (ciphertextLen == 0 || ciphertextLen % AES_BLOCK_SIZE != 0) {
         napi_throw_error(env, nullptr, "Ciphertext length must be multiple of 16");

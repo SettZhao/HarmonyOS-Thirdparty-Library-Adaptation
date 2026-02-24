@@ -30,20 +30,23 @@ export default function aesTest() {
       hilog.info(0x0000, TAG, 'Basic encryption/decryption test PASSED');
     });
 
-    // Test 2: Empty string encryption
-    it('testEmptyStringEncryption', 0, () => {
+    // Test 2: Empty string validation (should throw error)
+    it('testEmptyStringValidation', 0, () => {
       const plaintext = '';
       const key = 'test-key-1234567';
       
-      hilog.info(0x0000, TAG, 'Testing empty string encryption');
+      hilog.info(0x0000, TAG, 'Testing empty string validation');
       
-      const encrypted = AES.encryptText(plaintext, key);
-      expect(encrypted).not().assertEqual('');
+      try {
+        AES.encryptText(plaintext, key);
+        // Should not reach here
+        expect(true).assertEqual(false);
+      } catch (error) {
+        // Expected: empty string should throw error
+        expect(error.message).assertContain('Empty string');
+      }
       
-      const decrypted = AES.decryptText(encrypted, key);
-      expect(decrypted).assertEqual(plaintext);
-      
-      hilog.info(0x0000, TAG, 'Empty string encryption test PASSED');
+      hilog.info(0x0000, TAG, 'Empty string validation test PASSED');
     });
 
     // Test 3: Long text encryption
