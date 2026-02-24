@@ -1,11 +1,11 @@
 {
   "name": "library",
   "version": "1.0.0",
-  "description": "Please describe the basic information.",
+  "description": "android-stackblur HarmonyOS port — Stack Blur image processing library",
   "main": "Index.ets",
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    "liblibrary.so": "file:./src/main/cpp/types/liblibrary"
+    "libblur.so": "file:./src/main/cpp/types/libblur"
   }
 }

@@ -1,0 +1,6 @@
+{
+  "name": "libblur.so",
+  "types": "./index.d.ts",
+  "version": "1.0.0",
+  "description": "Stack Blur native module type definitions"
+}

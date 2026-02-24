@@ -1,1 +1,1 @@
-export { MainPage } from './src/main/ets/components/MainPage';
+export { StackBlurManager } from './src/main/ets/StackBlurManager';
