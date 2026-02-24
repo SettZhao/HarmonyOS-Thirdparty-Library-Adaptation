@@ -1,19 +1,19 @@
-﻿---
-name: android-to-openharmony
+---
+name: android-to-harmonyos
 description:
-  Android 三方库移植到 OpenHarmony (API 12+) 的完整工作流，涵盖可移植性分析、API 映射、代码迁移和项目构建。
+  Android 三方库移植到 HarmonyOS (API 12+) 的完整工作流，涵盖可移植性分析、API 映射、代码迁移和项目构建。
   支持所有类型的 Android 库移植：Java/Kotlin 纯逻辑库、Android UI 组件库、包含 JNI/NDK Native 代码的库。
   Use when:
-  (1) 将 Android 三方库（如 OkHttp、Gson、Glide 等）移植/迁移到 OpenHarmony 或 HarmonyOS NEXT
-  (2) 分析 Android 库的 OpenHarmony 可移植性
-  (3) 将 Android API 调用替换为 OpenHarmony API
+  (1) 将 Android 三方库（如 OkHttp、Gson、Glide 等）移植/迁移到 HarmonyOS 或 HarmonyOS NEXT
+  (2) 分析 Android 库的 HarmonyOS 可移植性
+  (3) 将 Android API 调用替换为 HarmonyOS API
   (4) 将 JNI/NDK 代码迁移到 NAPI
   (5) 将 Android View/Compose UI 代码迁移到 ArkUI
-  (6) 创建 HAR/HSP 格式的 OpenHarmony 三方库包
-  触发关键词：移植、迁移、porting、migration、Android to OpenHarmony、鸿蒙适配、三方库适配
+  (6) 创建 HAR/HSP 格式的 HarmonyOS 三方库包
+  触发关键词：移植、迁移、porting、migration、Android to HarmonyOS、鸿蒙适配、三方库适配
 ---
 
-# Android 三方库移植 OpenHarmony
+# Android 三方库移植 HarmonyOS
 
 ## Skill 结构
 
@@ -39,6 +39,8 @@ description:
 | [references/project-structure.md](references/project-structure.md) | OH 项目结构与构建系统 |
 | [references/template-structure.md](references/template-structure.md) | Template 项目结构详解 |
 | [references/testing.md](references/testing.md) | hypium 测试框架完整文档 |
+| [references/三方库规格-template.md](references/三方库规格-template.md) | **三方库规格文档**模板（Android/OH 双侧接口规格） |
+| [references/方案设计-template.md](references/方案设计-template.md) | **方案设计文档**模板（移植方案详细设计） |
 | [refs/taskpool.md](references/refs/taskpool.md) | TaskPool API |
 | [refs/worker.md](references/refs/worker.md) | Worker API |
 | [refs/collections.md](references/refs/collections.md) | 共享容器 API |
@@ -69,7 +71,7 @@ description:
 ```powershell
 # 运行环境检查脚本（在 workspace 根目录下执行）
 powershell -ExecutionPolicy Bypass -File `
-  .github\skills\android-to-openharmony\scripts\check_env.ps1
+  .github\skills\android-to-harmonyos\scripts\check_env.ps1
 ```
 
 或手动检查：
@@ -96,6 +98,7 @@ hdc list targets
 ```
 Step 1: 分析可移植性          → skills/analysis
 Step 2: 确定迁移策略          → skills/analysis
+Step 2.5: 生成移植文档        → 三方库规格.md + 方案设计.md（必须在 Step 3 之前完成）
 Step 3: 创建项目结构          → skills/project-setup
 Step 4: 迁移核心代码          → skills/code-migration + native-migration + ui-migration
 Step 5: SOP 验证流程          → skills/build-and-test
@@ -113,7 +116,57 @@ Step 5: SOP 验证流程          → skills/build-and-test
 python scripts/analyze_library.py <android-library-source-path>
 ```
 
-### Step 3: 创建 OpenHarmony 项目结构
+### Step 2.5: 生成移植必备文档（必须在 Step 3 之前完成）
+
+⚠️ **这是强制步骤，不可跳过。** 在开始任何代码迁移工作之前，必须先生成以下两份文档并保存到当前移植项目的根目录。
+
+#### 文档一：三方库规格.md
+
+**基于 [references/三方库规格-template.md](references/三方库规格-template.md) 生成。**
+
+生成时机与要求：
+
+- **Step 1-2 完成后立即完成 Android 侧内容**：
+  - 读取并分析 Android 源码，逐一列出所有公开类、方法、属性、常量、枚举
+  - 对每个接口/属性**精确描述**：参数类型、返回值类型、功能行为、异常行为
+  - 列出全部 Android 权限依赖
+- **移植完成后补全 HarmonyOS 侧内容**：
+  - 对每个 OH 接口说明参数类型（使用 ArkTS 类型）、返回值、异步模型
+  - 明确标注与 Android 侧的差异（`[变更]` / `[新增]` / `[删除]` / `[不变]`）
+  - 填写 Android → HarmonyOS 接口映射总览表
+  - 填写不支持特性说明表
+
+#### 文档二：方案设计.md
+
+**基于 [references/方案设计-template.md](references/方案设计-template.md) 生成。**
+
+生成时机与要求：
+
+- **Step 2 完成后立即填写以下章节（开始编码前）**：
+  - **第一章**：背景与目标（功能目标、兼容目标、质量目标、交付物、范围）
+  - **第二章**：Android 库分析总结（整体架构、可移植性结论、关键迁移挑战）
+  - **第三章**：整体移植方案（移植路径选择及理由、整体架构设计图、项目结构设计）
+  - **第四章**：核心模块移植方案（每个核心模块的详细迁移设计，含 API 替换表和伪代码）
+  - **第五章**：关键技术决策（每个重要选择须提供备选方案对比表和决策依据）
+  - **第六章**：API 差异与兼容性说明（破坏性变更和非破坏性行为差异）
+  - **第七章**：测试方案（测试用例清单，覆盖全部公开接口正常路径 + 边界值 + 异常输入）
+  - **第八章**：风险评估
+- **移植完成后补全**：
+  - 第九章进度跟踪（更新所有任务状态为 ✅）
+  - 各章节以实际执行结果替换预期描述
+
+**方案描述质量标准（不满足则重写）**：
+
+| 标准 | 要求 |
+|------|------|
+| 具体性 | 不允许出现"类似方式"、"对应处理"等模糊表述，必须给出具体 API 名称和方法签名 |
+| 完整性 | 每个公开模块/接口必须有对应的迁移方案描述，不得遗漏 |
+| 可操作性 | Native 迁移必须逐文件说明：直接复用 / 需修改（修改内容）/ 新增（新增内容）|
+| 差异说明 | 所有与 Android 侧不同的设计选择必须附带理由 |
+
+---
+
+### Step 3: 创建 HarmonyOS 项目结构
 
 详见 [skills/project-setup/README.md](skills/project-setup/README.md)
 
@@ -167,7 +220,7 @@ hvigorw assembleHap
 ```powershell
 # 方法 1：使用脚本安装（推荐，从 workspace 根目录执行）
 powershell -ExecutionPolicy Bypass -File `
-  .github\skills\android-to-openharmony\scripts\install_hap.ps1 `
+  .github\skills\android-to-harmonyos\scripts\install_hap.ps1 `
   -ProjectPath Template -Uninstall
 
 # 方法 2：在项目目录内手动安装
@@ -185,7 +238,7 @@ hdc install entry\build\default\outputs\default\entry-default-signed.hap
 ```powershell
 # 方法 1：使用脚本运行测试（推荐，从 workspace 根目录执行）
 powershell -ExecutionPolicy Bypass -File `
-  .github\skills\android-to-openharmony\scripts\run_tests.ps1 -ShowLog
+  .github\skills\android-to-harmonyos\scripts\run_tests.ps1 -ShowLog
 
 # 方法 2：手动运行测试
 hdc shell "aa test -b com.example.template -m entry_test -s unittest OpenHarmonyTestRunner"
@@ -271,10 +324,10 @@ OH_LOG_INFO(LOG_APP, "value=%d", val);           // ❌ 显示 <private>
 
 | 脚本 | 说明 | 用法 |
 |------|------|------|
-| `check_env.ps1` | 检查开发环境 | `powershell -EP Bypass -File .github\skills\android-to-openharmony\scripts\check_env.ps1` |
-| `analyze_library.py` | 分析 Android 库可移植性 | `python .github\skills\android-to-openharmony\scripts\analyze_library.py <path>` |
-| `install_hap.ps1` | 编译并安装 HAP | `powershell -EP Bypass -File .github\skills\...\install_hap.ps1 -ProjectPath Template` |
-| `run_tests.ps1` | 运行测试用例 | `powershell -EP Bypass -File .github\skills\...\run_tests.ps1` |
-| `skill_evolution_helper.py` | Skill 自进化辅助工具 | `python .github\skills\android-to-openharmony\scripts\skill_evolution_helper.py --check` |
+| `check_env.ps1` | 检查开发环境 | `powershell -EP Bypass -File .github\skills\android-to-harmonyos\scripts\check_env.ps1` |
+| `analyze_library.py` | 分析 Android 库可移植性 | `python .github\skills\android-to-harmonyos\scripts\analyze_library.py <path>` |
+| `install_hap.ps1` | 编译并安装 HAP | `powershell -EP Bypass -File .github\skills\android-to-harmonyos\scripts\install_hap.ps1 -ProjectPath Template` |
+| `run_tests.ps1` | 运行测试用例 | `powershell -EP Bypass -File .github\skills\android-to-harmonyos\scripts\run_tests.ps1` |
+| `skill_evolution_helper.py` | Skill 自进化辅助工具 | `python .github\skills\android-to-harmonyos\scripts\skill_evolution_helper.py --check` |
 
-**详细用法参见**：[scripts/USAGE_GUIDE.md](.github/skills/android-to-openharmony/scripts/USAGE_GUIDE.md)
+**详细用法参见**：[scripts/USAGE_GUIDE.md](.github/skills/android-to-harmonyos/scripts/USAGE_GUIDE.md)
